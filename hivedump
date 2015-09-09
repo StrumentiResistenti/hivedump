@@ -145,6 +145,11 @@ sub get_ddl {
 	$ddl = suppress("^OUTPUTFORMAT",	$ddl) if $no_stored_as;
 	$ddl = suppress("^ROW FORMAT",		$ddl) if $no_row_format;
 
+	#
+	# Escape column names to avoid clashes with reserved words
+	#
+	$ddl = escape_columns($ddl);
+
 	return ($ddl);
 }
 
@@ -218,8 +223,8 @@ sub suppress {
 	my @out = ();
 	while (1) {
 		my $line = shift(@ddl);
-		# print " ** $line\n";
 		last unless defined $line;
+
 		if ($line =~ m/$pattern/) {
 			while ($ddl[0] =~ /^\s/) { shift @ddl; }
 		} else {
@@ -229,3 +234,30 @@ sub suppress {
 
 	return join("\n", @out);
 }
+
+#
+# Escapes column names by adding backticks
+#
+sub escape_columns {
+	my ($ddl) = @_;
+
+	my @ddl = split "\n", $ddl;
+	my @out = ();
+	while (1) {
+		my $line = shift(@ddl);
+		last unless defined $line;
+		push @out, $line;	
+
+		if ($line =~ m/(CREATE(\s+EXTERNAL)?\s+TABLE|PARTITIONED\s+BY)/ and defined $ddl[0]) {
+			while ($ddl[0] =~ /^\s/) {
+				my $subline = shift @ddl;
+				$subline =~ s/^(\s+)([^\s]+)/$1`$2`/;
+				push @out, $subline;	
+				last unless defined $ddl[0];
+			}
+		}
+	}
+
+	return join("\n", @out);
+}
+
