@@ -2,8 +2,9 @@
 
 use strict;
 use warnings;
-
 use Getopt::Long;
+
+$| = 1;
 
 my $hive = "/usr/bin/hive";
 
@@ -16,16 +17,7 @@ my $no_tblproperties = 0;
 my $no_stored_as = 0;
 my $no_row_format = 0;
 
-GetOptions(
-	"database=s"		=> \$db,
-	"all-databases"		=> \$all_db,
-	"if-not-exists"		=> \$if_not_exists,
-	"drop-table"		=> \$drop_table,
-	"no-location"		=> \$no_location,
-	"no-tblproperties"	=> \$no_tblproperties,
-	"no-stored-as"		=> \$no_stored_as,
-	"no-row-format"		=> \$no_row_format,
-) or usage("Error parsing options!");
+main();
 
 sub usage {
 	my $msg = shift() || "";
@@ -37,22 +29,36 @@ Usage: $0 [options]
   --all-databases       Export all databases
   --if-not-exists       Add "IF NOT EXISTS" after "CREATE TABLE"
   --drop-table          Add "DROP TABLE ...;" before "CREATE TABLE"
-  --no-location			Suppress LOCATION
-  --no-tblproperties    Suppress TBLPROPERTIES
-  --no-stored-as        Suppress STORED AS
-  --no-row-format       Suppress ROW FORMAT
+  --no-location         Suppress LOCATION clause
+  --no-tblproperties    Suppress TBLPROPERTIES clause
+  --no-stored-as        Suppress STORED AS clause
+  --no-row-format       Suppress ROW FORMAT clause
+
 |;
 	exit (1);
 }
 
-if (length($db)) {
-	dump_db($db);
-} elsif ($all_db) {
-	for my $db_name (get_databases()) {
-		dump_db($db_name);
+sub main {
+	GetOptions(
+		"database=s"		=> \$db,
+		"all-databases"		=> \$all_db,
+		"if-not-exists"		=> \$if_not_exists,
+		"drop-table"		=> \$drop_table,
+		"no-location"		=> \$no_location,
+		"no-tblproperties"	=> \$no_tblproperties,
+		"no-stored-as"		=> \$no_stored_as,
+		"no-row-format"		=> \$no_row_format,
+	) or usage("Error parsing options!");
+
+	if (length($db)) {
+		dump_db($db);
+	} elsif ($all_db) {
+		for my $db_name (get_databases()) {
+			dump_db($db_name);
+		}
+	} else {
+		usage("Provide exactly one of --all-databases or --database=<db_name>");
 	}
-} else {
-	usage("Specify at least one of --all-databases or --database=<db_name>");
 }
 
 sub get_databases {
@@ -61,16 +67,29 @@ sub get_databases {
 
 	for my $db_name (@db_list) {
 		dump_db($db_name);
+		print STDERR "DB $db dumped\n";
 	}
 }
 
 sub dump_db {
 	my ($db) = @_;
+	unless (defined $db and $db) {
+		print STDERR "No DB provided to dump_db()\n";
+		return;
+	}
+
+	#
+	# Creating temporary file name
+	#
 	my $tmp = sprintf("/tmp/.hivedump.$db.%d.%d.%d", $$, time(), rand(10000));
 
 	if (open(OUT, ">$tmp")) {
+		print STDERR "Dumping DB $db\n";
 		print OUT "use $db;\n";
 
+		#
+		# Listing tables
+		#
 		my @tables = qx|$hive cli -e "use $db; show tables;" 2>/dev/null|;
 		map chomp, @tables;
 
@@ -80,19 +99,24 @@ sub dump_db {
 		}
 
 		close OUT;
+		print STDERR "  . table list acquired\n";
 
+		#
+		# Getting each table DDL
+		#
 		my $ddl = qx|$hive cli -f $tmp 2>/dev/null|;
 		$ddl =~ s/system:user.name[^\n]+/;\n\n/g;
+		print STDERR "  . table DDL acquired\n";
 
 		#
 		# Add DROP TABLE/VIEW before CREATE TABLE/VIEW, if $drop_table is true
 		#
-		$ddl =~ s/CREATE\s+(TABLE|VIEW)\s+([^\n(]+)/DROP $1 $2;\n\nCREATE $1 $2/g if $drop_table;
+		$ddl =~ s/CREATE(\s+EXTERNAL)?\s+(TABLE|VIEW)\s+([^\n(]+)/DROP $2 $3;\n\nCREATE $2 $3/g if $drop_table;
 
 		#
 		# Add IF NOT EXISTS after CREATE TABLE/VIEW if $if_not_exists is true
 		#
-		$ddl =~ s/CREATE\s+(TABLE|VIEW)/CREATE $1 IF NOT EXISTS/g if $if_not_exists;
+		$ddl =~ s/CREATE(\s+EXTERNAL)?\s+(TABLE|VIEW)/CREATE $2 IF NOT EXISTS/g if $if_not_exists;
 
 		$ddl = suppress("^LOCATION",		$ddl) if $no_location;
 		$ddl = suppress("^TBLPROPERTIES",	$ddl) if $no_tblproperties;
@@ -101,7 +125,33 @@ sub dump_db {
 		$ddl = suppress("^OUTPUTFORMAT",	$ddl) if $no_stored_as;
 		$ddl = suppress("^ROW FORMAT",		$ddl) if $no_row_format;
 
+		$ddl .= "\n\n";
+
+		#
+		# Create a parsable version of the DDL
+		#
+		my @ddl = split("\n", $ddl);
+		my $parsable = join("", @ddl);
+		my @parsable = split(";", $parsable);
+		map {
+			if (/CREATE(\s+EXTERNAL)?\s+TABLE\s+([^\(\s]+).*PARTITIONED\s+BY/) {
+				my $table = $2;
+				print STDERR "  . scanning partitions on table $table\n";
+
+				my @partitions = split "\n", qx|$hive cli -e "use $db; show partitions $table;" 2>/dev/null|;
+
+				for my $p (@partitions) {
+					$p =~ s/([^=]+)=(.*)/$1='$2'/;
+					$ddl .= "ALTER TABLE $table ADD PARTITION ($p);\n";
+				}
+			}
+		} @parsable;
+
 		print $ddl;
+		print STDERR "  . dump done\n";
+	} else {
+		print STDERR "Error opening tmp file $tmp, aborting DB $db dump\n";
+		return;
 	}
 }
 
