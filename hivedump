@@ -16,6 +16,7 @@ my $no_location = 0;
 my $no_tblproperties = 0;
 my $no_stored_as = 0;
 my $no_row_format = 0;
+my $help = 0;
 
 main();
 
@@ -23,7 +24,7 @@ sub usage {
 	my $msg = shift() || "";
 	print STDERR "\nERROR: $msg\n" if defined $msg and length $msg;
 	print STDERR qq|
-Usage: $0 [options]
+Usage: $0 [options] > dump.hql
 
   --database=<db_name>  Specify the DB to export
   --all-databases       Export all databases
@@ -33,6 +34,7 @@ Usage: $0 [options]
   --no-tblproperties    Suppress TBLPROPERTIES clause
   --no-stored-as        Suppress STORED AS clause
   --no-row-format       Suppress ROW FORMAT clause
+  --help                Prints this information
 
 |;
 	exit (1);
@@ -48,7 +50,10 @@ sub main {
 		"no-tblproperties"	=> \$no_tblproperties,
 		"no-stored-as"		=> \$no_stored_as,
 		"no-row-format"		=> \$no_row_format,
+		"help"              => \$help,
 	) or usage("Error parsing options!");
+
+	if ($help) { usage(); }
 
 	if (length($db)) {
 		dump_db($db);
