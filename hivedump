@@ -116,7 +116,7 @@ sub dump_db {
 		#
 		# Add DROP TABLE/VIEW before CREATE TABLE/VIEW, if $drop_table is true
 		#
-		$ddl =~ s/CREATE(\s+EXTERNAL)?\s+(TABLE|VIEW)\s+([^\n(]+)/DROP $2 $3;\n\nCREATE $2 $3/g if $drop_table;
+		$ddl =~ s/CREATE(\s+EXTERNAL)?\s+(TABLE|VIEW)\s+([^\n(\s]+)/DROP $2 $3;\n\nCREATE $2 $3/g if $drop_table;
 
 		#
 		# Add IF NOT EXISTS after CREATE TABLE/VIEW if $if_not_exists is true
