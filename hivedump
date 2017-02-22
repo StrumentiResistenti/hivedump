@@ -207,7 +207,7 @@ sub dump_db {
 				$ddl .= "ALTER TABLE $table ADD PARTITION ($p);\n";
 			}
 		}
-    } get_parsable_ddl($ddl);
+	} get_parsable_ddl($ddl);
 
 	#
 	# Prints the DDL with a 'use <DB_name>;' statement on top
