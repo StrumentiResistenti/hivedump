@@ -13,6 +13,7 @@ my $all_db = 0;
 my $if_not_exists = 0;
 my $drop_table = 0;
 my $no_location = 0;
+my $no_partition = 0;
 my $no_tblproperties = 0;
 my $no_stored_as = 0;
 my $no_row_format = 0;
@@ -31,6 +32,7 @@ Usage: $0 [options] > dump.hql
   --if-not-exists       Add "IF NOT EXISTS" after "CREATE TABLE"
   --drop-table          Add "DROP TABLE ...;" before "CREATE TABLE"
   --no-location         Suppress LOCATION clause
+  --no-partition        Suppress PARITION information
   --no-tblproperties    Suppress TBLPROPERTIES clause
   --no-stored-as        Suppress STORED AS clause
   --no-row-format       Suppress ROW FORMAT clause
@@ -47,6 +49,7 @@ sub main {
 		"if-not-exists"		=> \$if_not_exists,
 		"drop-table"		=> \$drop_table,
 		"no-location"		=> \$no_location,
+		"no-partition"		=> \$no_partition,
 		"no-tblproperties"	=> \$no_tblproperties,
 		"no-stored-as"		=> \$no_stored_as,
 		"no-row-format"		=> \$no_row_format,
@@ -189,19 +192,21 @@ sub dump_db {
 	#
 	# Scan for partitions on tables
 	#
-	map {
-		if (/CREATE(\s+EXTERNAL)?\s+TABLE\s+([^\(\s]+).*PARTITIONED\s+BY/) {
-			my $table = $2;
-			print STDERR "  . scanning partitions on table $table\n";
+	unless ($no_partition) {
+		map {
+			if (/CREATE(\s+EXTERNAL)?\s+TABLE\s+([^\(\s]+).*PARTITIONED\s+BY/) {
+				my $table = $2;
+				print STDERR "  . scanning partitions on table $table\n";
 
-			my @partitions = split "\n", qx|$hive cli -e "use $db; show partitions $table;" 2>/dev/null|;
+				my @partitions = split "\n", qx|$hive cli -e "use $db; show partitions $table;" 2>/dev/null|;
 
-			for my $p (@partitions) {
-				$p =~ s/([^=]+)=(.*)/$1='$2'/;
-				$ddl .= "ALTER TABLE $table ADD PARTITION ($p);\n";
+				for my $p (@partitions) {
+					$p =~ s/([^=]+)=(.*)/$1='$2'/;
+					$ddl .= "ALTER TABLE $table ADD PARTITION ($p);\n";
+				}
 			}
-		}
-	} get_parsable_ddl($ddl);
+		} get_parsable_ddl($ddl);
+        }
 
 	#
 	# Prints the DDL with a 'use <DB_name>;' statement on top
