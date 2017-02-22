@@ -206,8 +206,8 @@ sub dump_db {
 				$p =~ s/([^=]+)=(.*)/$1='$2'/;
 				$ddl .= "ALTER TABLE $table ADD PARTITION ($p);\n";
 			}
-		} get_parsable_ddl($ddl);
-        }
+		}
+    } get_parsable_ddl($ddl);
 
 	#
 	# Prints the DDL with a 'use <DB_name>;' statement on top
