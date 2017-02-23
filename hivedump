@@ -211,7 +211,7 @@ sub dump_db {
 	#
 	# Prints the DDL with a 'use <DB_name>;' statement on top
 	#
-	print "use $db;\n\n$ddl\n";
+	print "CREATE DATABASE IF NOT EXISTS $db;\n\nUSE $db;\n\n$ddl\n";
 	print STDERR "  . dump done\n";
 }
 
