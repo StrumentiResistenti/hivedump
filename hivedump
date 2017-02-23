@@ -61,15 +61,13 @@ sub main {
 	if (length($db)) {
 		dump_db($db);
 	} elsif ($all_db) {
-		for my $db_name (get_databases()) {
-			dump_db($db_name);
-		}
+                dump_databases();
 	} else {
 		usage("Provide exactly one of --all-databases or --database=<db_name>");
 	}
 }
 
-sub get_databases {
+sub dump_databases {
 	my @db_list = qx|$hive cli -e "show databases" 2>/dev/null|;
 	map chomp, @db_list;
 
@@ -235,7 +233,7 @@ sub suppress {
 		if ($line =~ m/$pattern/) {
 			while ($ddl[0] =~ /^\s/) { shift @ddl; }
 		} else {
-			push @out, $line;	
+			push @out, $line;
 		}
 	}
 
@@ -253,13 +251,13 @@ sub escape_columns {
 	while (1) {
 		my $line = shift(@ddl);
 		last unless defined $line;
-		push @out, $line;	
+		push @out, $line;
 
 		if ($line =~ m/(CREATE(\s+EXTERNAL)?\s+TABLE|PARTITIONED\s+BY)/ and defined $ddl[0]) {
 			while ($ddl[0] =~ /^\s/) {
 				my $subline = shift @ddl;
 				$subline =~ s/^(\s+)([^\s]+)/$1`$2`/;
-				push @out, $subline;	
+				push @out, $subline;
 				last unless defined $ddl[0];
 			}
 		}
