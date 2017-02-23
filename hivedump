@@ -235,7 +235,7 @@ sub suppress {
 		if ($line =~ m/$pattern/) {
 			while ($ddl[0] =~ /^\s/) { shift @ddl; }
 		} else {
-			push @out, $line;	
+			push @out, $line;
 		}
 	}
 
@@ -253,13 +253,13 @@ sub escape_columns {
 	while (1) {
 		my $line = shift(@ddl);
 		last unless defined $line;
-		push @out, $line;	
+		push @out, $line;
 
 		if ($line =~ m/(CREATE(\s+EXTERNAL)?\s+TABLE|PARTITIONED\s+BY)/ and defined $ddl[0]) {
 			while ($ddl[0] =~ /^\s/) {
 				my $subline = shift @ddl;
 				$subline =~ s/^(\s+)([^\s]+)/$1`$2`/;
-				push @out, $subline;	
+				push @out, $subline;
 				last unless defined $ddl[0];
 			}
 		}
