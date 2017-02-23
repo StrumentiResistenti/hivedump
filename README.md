@@ -2,9 +2,9 @@
 Simple tool to dump hive tables metadata. It requires **Perl** and **Getopts::Long** module only.
 
     $ ./hivedump -h
-    
+
     Usage: ./hivedump [options] > dump.hql
-   
+
       --database=<db_name>  Specify the DB to export
       --all-databases       Export all databases
       --if-not-exists       Add "IF NOT EXISTS" after "CREATE TABLE"
