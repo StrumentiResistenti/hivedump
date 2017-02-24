@@ -149,7 +149,7 @@ sub get_ddl {
 	#
 	# Escape column names to avoid clashes with reserved words
 	#
-        #$ddl = escape_columns($ddl);
+        $ddl = escape_columns($ddl);
 
 	return ($ddl);
 }
@@ -256,7 +256,7 @@ sub escape_columns {
 		if ($line =~ m/(CREATE(\s+EXTERNAL)?\s+TABLE|PARTITIONED\s+BY)/ and defined $ddl[0]) {
 			while ($ddl[0] =~ /^\s/) {
 				my $subline = shift @ddl;
-				$subline =~ s/^(\s+)([^\s]+)/$1`$2`/;
+                                $subline =~ s/^(\s+)([^\s]+)/$1`$2`/ unless $subline =~ m/^\s+`/;
 				push @out, $subline;
 				last unless defined $ddl[0];
 			}
