@@ -61,15 +61,13 @@ sub main {
 	if (length($db)) {
 		dump_db($db);
 	} elsif ($all_db) {
-		for my $db_name (get_databases()) {
-			dump_db($db_name);
-		}
+                dump_databases();
 	} else {
 		usage("Provide exactly one of --all-databases or --database=<db_name>");
 	}
 }
 
-sub get_databases {
+sub dump_databases {
 	my @db_list = qx|$hive cli -e "show databases" 2>/dev/null|;
 	map chomp, @db_list;
 
@@ -131,7 +129,7 @@ sub get_ddl {
 	#
 	# Add DROP TABLE/VIEW before CREATE TABLE/VIEW, if $drop_table is true
 	#
-	$ddl =~ s/CREATE(\s+EXTERNAL)?\s+(TABLE|VIEW)\s+([^\n(\s]+)/DROP $2 $3;\n\nCREATE $2 $3/g if $drop_table;
+	$ddl =~ s/CREATE(\s+EXTERNAL)?\s+(TABLE|VIEW)\s+([^\n(\s]+)/DROP $2 IF EXISTS $3;\n\nCREATE$1 $2 $3/g if $drop_table;
 
 	#
 	# Add IF NOT EXISTS after CREATE TABLE/VIEW if $if_not_exists is true
@@ -213,7 +211,7 @@ sub dump_db {
 	#
 	# Prints the DDL with a 'use <DB_name>;' statement on top
 	#
-	print "use $db;\n\n$ddl\n";
+	print "CREATE DATABASE IF NOT EXISTS $db;\n\nUSE $db;\n\n$ddl\n";
 	print STDERR "  . dump done\n";
 }
 
