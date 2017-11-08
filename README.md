@@ -1,4 +1,7 @@
 # hivedump
+
+Note that hivedump has been supeceeded by Bear: https://github.com/StrumentiResistenti/Bear
+
 Simple tool to dump hive tables metadata. It requires **Perl** and **Getopts::Long** module only.
 
     $ ./hivedump -h
